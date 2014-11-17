@@ -1,0 +1,89 @@
+#include "Boltzmann.h"
+#include <time.h>
+
+#include <vector>
+using std::vector;
+
+#include <iostream>
+using std::cerr;
+
+Boltzmann::Boltzmann( ) { srand((unsigned) time(0)); } 
+
+Boltzmann::~Boltzmann( ) { } 
+
+std::string Boltzmann::calculateNextAction(std::vector<std::pair<std::string, double> > possibleActions){
+	if ( possibleActions.empty()) {
+	
+		cerr<<"No actions to select from...exiting...";
+		exit(1);
+	}
+		
+		else {
+			//cerr <<"in boltzmann selecting an action" <<endl;
+			
+			double * p = new double[(int)possibleActions.size()];
+			double sum = probSum (possibleActions, p);	
+			/*-------------------------------------------*/					
+			double ran_num = ( (double)rand() / RAND_MAX) ;
+			double normalised_p = 0.0 ;
+			//std::cerr<<"this 1 "<<(int)possibleActions.size()<<"\n";
+			for (int i = 0 ; i < (int)possibleActions.size() ; ++i) {
+
+				/*Normalise and accumulate the probabilities*/
+			
+				normalised_p += (p[i] / sum);
+			//	cerr<<"\nBoltzmann: Normalizing......"<<"normalised_p is :"<<normalised_p<<" --ran_num is:"<<ran_num;
+		
+		
+				if (normalised_p >= ran_num) {
+				//	cerr<<"\nBoltzmann : picked action ID: "<<v_k_v_p[i]->first->getAction()->getActionID() <<endl;
+					
+					delete[] p;
+					
+					return (possibleActions[i].first);
+				}
+			}
+		}
+//std::cerr<<"this 2 "<<(int)possibleActions.size()<<"\n";
+	//cerr<<"\nBoltzmann:  Some action returned as a default behaviour : "<<(v_k_v_p.back())->first->getAction()->getActionID();
+	//could be returning 1 as a defauly behaviour	
+		return ( (possibleActions.back()).first);
+	 
+}
+
+double Boltzmann::probSum (std::vector<std::pair<std::string, double> > possibleActions, double * p) {
+		
+		int p_size = (int)possibleActions.size();
+		double q = 0.0, sum = 0.0;
+					
+		for (int i = 0; i < p_size ; ++i) {
+		
+			q = possibleActions[i].second;
+			
+		//	cerr << "temp in boltzmann "<< temperature<<endl;
+			/*calculate Boltzmann's factor*/
+			p[i] = exp( q / temperature );
+		//	cerr <<"temp in boltzmann selecting an action " << temperature<<endl;
+			
+			sum += p[i];
+		
+			}
+
+	return sum ;
+
+}
+ double Boltzmann::getTemperature() { return temperature; }
+ 
+void Boltzmann::setTemperature(double tmp) {
+		
+	if (tmp > 0.0)
+		{
+			temperature = tmp;
+			//cerr<<"\nNew Boltzmann Temp : "<< temperature<<"\n" ;
+		}
+	else
+		{ //	cerr<<"Boltzmann Temperature cannot be Zero....Setting Temperature to 1.0 \n";
+		  	temperature = 1.0;
+		}
+	
+}

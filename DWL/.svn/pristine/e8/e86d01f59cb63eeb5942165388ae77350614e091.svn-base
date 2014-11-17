@@ -1,0 +1,776 @@
+/* 
+ * File:   TransferMapping.cpp
+ * Author: Adam
+ * 
+ * Created on November 5, 2012, 3:42 PM
+ */
+
+#include "TransferMapping.h"
+#include <iostream>
+#include <stdlib.h>
+#include <sstream>
+#include <fstream>
+
+TransferMapping::TransferMapping()
+{
+    deletedCount = 0;
+    sourceSet = false;
+    targetSet = false;
+    wSourceSet = false;
+    wTargetSet = false;
+    sourceName = "";
+    TargetName = "";
+}
+
+TransferMapping::~TransferMapping()
+{
+}
+
+void TransferMapping::setTarget(QTable* target)
+{
+    this->target = target;
+    targetSet = true;
+}
+
+QTable* TransferMapping::getTarget() const
+{
+    return target;
+}
+
+void TransferMapping::setSource(QTable* source)
+{
+    this->source = source;
+    sourceSet = true;
+}
+
+/**
+ * change the mapping from the target side
+ * @param stateToUpdate
+ */
+void TransferMapping::updateLearnedMappingFromTarget(std::string targetStateToUpdate, bool good)
+{
+    //std::cout << "1\n";
+    //reverse the mapping
+    std::string sourceStateActionToUpdate = "warning"; //find in mem vector
+    std::vector< std::pair<std::string, std::string> >::iterator bufferIterator = outBuffer.begin();
+    while (bufferIterator != outBuffer.end())
+    {//given the targets state find sources
+        //std::cout << "2\n";
+        if ((*bufferIterator).second == targetStateToUpdate)
+        {//found it
+            //std::cout << "3\n";
+            sourceStateActionToUpdate = (*bufferIterator).first;
+            break;
+        }
+        else
+        {
+            //std::cout << "4\n";
+            bufferIterator++;
+        }
+    }
+    if (sourceStateActionToUpdate == "warning")
+    {
+        std::cout << "somethihgn went wrong in updateLearnedMappingFromTarget\n";
+    }
+    std::pair<std::string, std::string> key;
+    key.first = sourceStateActionToUpdate;
+    key.second = targetStateToUpdate;
+    std::vector<std::string>::iterator unallocatedIterator = this->sourceUnallocatedPool.begin();
+    bool okToUpdate = true;
+    //std::cout << "5\n";
+    while (unallocatedIterator != sourceUnallocatedPool.end())
+    {
+        //std::cout << "6\n";
+        if ((*unallocatedIterator) == sourceStateActionToUpdate)
+        {//if matched warn
+            //std::cout << "7\n";
+            std::cout << "thrying to updarte " << sourceStateActionToUpdate << " which is unallocated in updateLearnedMappingFromTarget\n";
+            okToUpdate = false;
+        }
+        unallocatedIterator++;
+    }
+
+    if (okToUpdate)
+    {
+        //std::cout << "7\n";
+        if (good)
+        {//if good upvote
+            //std::cout << "8\n";
+            //std::cout << (*votes.find(key)).second << " was votes\n";
+            (*votes.find(key)).second++;
+            //std::cout << (*votes.find(key)).second << " is votes\n";
+        }
+        else
+        {//downvote
+            //std::cout << (*votes.find(key)).second << " was votes\n";
+            (*votes.find(key)).second--;
+            //std::cout << (*votes.find(key)).second << " is votes\n";
+            //voting is done.  delete if nessicary
+            if ((*votes.find(key)).second < 0)
+            {//if decided to be bad redo
+                //find the mapping entry and delete it
+                std::pair<std::multimap<std::string, std::pair<std::string, double> >::iterator, std::multimap<std::string, std::pair<std::string, double> >::iterator> range = mappings.equal_range(sourceStateActionToUpdate);
+                while (range.first != range.second)
+                {//go through the list of possible and see it the other end of this pipe matches
+                    if ((*range.first).second.first == targetStateToUpdate)
+                    {//this is the one with negative votes
+                        std::cout << "deleting pipe: " << sourceStateActionToUpdate << " " << targetStateToUpdate << "\n";
+                        deletedCount++;
+                        mappings.erase(range.first);
+                        break;
+                    }
+                    else
+                    {
+                        range.first++;
+                    }
+
+                }
+                //check if should be in unallocated
+                if (mappings.find(sourceStateActionToUpdate) == mappings.end())
+                {//if isnt another one there
+                    sourceUnallocatedPool.push_back(sourceStateActionToUpdate); //add to unallocated                        
+                    std::vector<std::string>::iterator allocIt = sourceAllocatedPool.begin();
+                    while (allocIt != sourceAllocatedPool.end())
+                    {
+                        if ((*allocIt) == sourceStateActionToUpdate)
+                        {//if found the one to delete
+                            sourceAllocatedPool.erase(allocIt);
+                            break;
+                        }
+                    }
+                }
+                //change mapping
+                std::pair<std::string, std::pair<std::string, double> > toAdd;
+                if (sourceUnallocatedPool.size() > 0)
+                {//if someone needs pairing
+                    int location = rand() % sourceUnallocatedPool.size(); //random position
+                    toAdd.first = sourceUnallocatedPool.at(location); //add new source
+                    sourceAllocatedPool.push_back(sourceUnallocatedPool.at(location)); //mark as allocated
+                    sourceUnallocatedPool.erase(sourceUnallocatedPool.begin() + location); //delete it
+                    toAdd.second.first = targetStateToUpdate; //add target
+                    toAdd.second.second = 1; //add weighting
+                    mappings.insert(toAdd); //done map it
+                }
+                else if (sourceUnallocatedPool.size() == 0)
+                {//if no one needs pairing
+
+                    int location = rand() % sourceAllocatedPool.size(); //random position
+                    toAdd.first = sourceAllocatedPool.at(location); //add new source
+                    sourceAllocatedPool.push_back(sourceAllocatedPool.at(location)); //mark as allocated
+                    toAdd.second.first = targetStateToUpdate; //add target
+                    toAdd.second.second = 1; //add weighting
+                    mappings.insert(toAdd); //done map it
+                }
+                //fix in votes
+                key.first = toAdd.first;
+                (*votes.find(key)).second = 0; //set the vote to zero
+            }
+        }
+    }
+
+}
+
+QTable * TransferMapping::getSource() const
+{
+    return source;
+}
+
+void TransferMapping::setWTarget(WTable * wTarget)
+{
+    this->wTarget = wTarget;
+    wTargetSet = true;
+}
+
+WTable * TransferMapping::getWTarget() const
+{
+    return wTarget;
+}
+
+void TransferMapping::setWSource(WTable * source)
+{
+    this->wSource = source;
+    wSourceSet = true;
+}
+
+WTable * TransferMapping::getWSource() const
+{
+    return wSource;
+}
+
+bool TransferMapping::getWTargetSet()
+{
+    return wTargetSet;
+}
+
+void TransferMapping::setTargetName(std::string TargetName)
+{
+    this->TargetName = TargetName;
+}
+
+std::string TransferMapping::getTargetName() const
+{
+    return TargetName;
+}
+
+void TransferMapping::setSourceName(std::string sourceName)
+{
+    this->sourceName = sourceName;
+}
+
+std::string TransferMapping::getSourceName() const
+{
+    return sourceName;
+}
+
+bool TransferMapping::getSourceSet()
+{
+    return sourceSet;
+}
+
+void TransferMapping::populateLearningMapping()
+{
+    if (source != NULL && target != NULL)
+    {//it ready
+
+        //init pools
+        std::multimap<std::string, std::pair<std::string, double> > sourceTable = source->getQTable();
+        std::multimap<std::string, std::pair<std::string, double> >::iterator qIterator = sourceTable.begin();
+        while (qIterator != sourceTable.end())
+        {//for all source states
+            std::stringstream ss;
+            ss << (*qIterator).first << ":" << (*qIterator).second.first; //make state+action
+            this->sourceUnallocatedPool.push_back(ss.str()); //add to pool
+            qIterator++;
+        }
+        //go through all target states and give them a source
+        std::multimap<std::string, std::pair<std::string, double> > targetTable = target->getQTable();
+        qIterator = targetTable.begin();
+        while (qIterator != targetTable.end())
+        {//for all target states
+            if (sourceUnallocatedPool.size() > 0)
+            {//if someone needs pairing
+                std::pair<std::string, std::pair<std::string, double> > toAdd;
+                int location = rand() % sourceUnallocatedPool.size(); //random position
+                toAdd.first = sourceUnallocatedPool.at(location); //add source
+                sourceAllocatedPool.push_back(sourceUnallocatedPool.at(location)); //mark as allocated
+                sourceUnallocatedPool.erase(sourceUnallocatedPool.begin() + location); //delete it
+                std::stringstream ss;
+                ss << (*qIterator).first << ":" << (*qIterator).second.first; //make state+action
+                toAdd.second.first = ss.str(); //add target
+                toAdd.second.second = 1; //add weighting
+                mappings.insert(toAdd); //done map it
+                qIterator++;
+            }
+            else if (sourceUnallocatedPool.size() == 0)
+            {//if no one needs pairing
+                std::pair<std::string, std::pair<std::string, double> > toAdd;
+                int location = rand() % sourceAllocatedPool.size(); //random position
+                toAdd.first = sourceAllocatedPool.at(location); //add source
+                sourceAllocatedPool.push_back(sourceAllocatedPool.at(location)); //mark as allocated
+                std::stringstream ss;
+                ss << (*qIterator).first << ":" << (*qIterator).second.first; //make state+action
+                toAdd.second.first = ss.str(); //add target
+                toAdd.second.second = 1; //add weighting
+                mappings.insert(toAdd); //done map it
+                qIterator++;
+            }
+        }
+        while (sourceUnallocatedPool.size() > 0)
+        {//if source had more than target alocate remainder
+            //go through all target states and give them a source
+            std::multimap<std::string, std::pair<std::string, double> > targetTable = target->getQTable();
+            qIterator = targetTable.begin();
+            while (qIterator != targetTable.end())
+            {//for all target states
+                if (sourceUnallocatedPool.size() > 0)
+                {//if someone needs pairing
+                    std::pair<std::string, std::pair<std::string, double> > toAdd;
+                    int location = rand() % sourceUnallocatedPool.size(); //random position
+                    toAdd.first = sourceUnallocatedPool.at(location); //add source
+                    sourceAllocatedPool.push_back(sourceUnallocatedPool.at(location)); //mark as allocated
+                    sourceUnallocatedPool.erase(sourceUnallocatedPool.begin() + location); //delete it
+                    std::stringstream ss;
+                    ss << (*qIterator).first << ":" << (*qIterator).second.first; //make state+action
+                    toAdd.second.first = ss.str(); //add target
+                    toAdd.second.second = 1; //add weighting
+                    mappings.insert(toAdd); //done map it
+                    qIterator++;
+                }
+            }
+        }
+        //set up the votes
+        std::multimap<std::string, std::pair<std::string, double> >::iterator mappingIterator = mappings.begin();
+        while (mappingIterator != mappings.end())
+        {//get all the allocated source states
+            std::pair<std::string, std::string> states;
+            states.first = (*mappingIterator).first;
+            states.second = (*mappingIterator).second.first;
+            std::pair<std::pair<std::string, std::string>, int> temp;
+            temp.first = states;
+            temp.second = 0;
+            votes.insert(temp); //init to zero votes so easy to change
+            mappingIterator++;
+        }
+
+    }
+}
+
+/**
+ * put the states into the mapping in any order
+ */
+void TransferMapping::populateMappingRandomly()
+{
+    bool bothFinished = false;
+    bool sourceFinished = false;
+    bool targetFinished = false;
+    if (source != NULL && target != NULL)
+    {//if something there
+        //for all source's states make them a partner in target
+        std::multimap<std::string, std::pair<std::string, double> >sourceStates = source->getQTable();
+        std::multimap<std::string, std::pair<std::string, double> >targetStates = target->getQTable();
+        std::multimap<std::string, std::pair<std::string, double> >::iterator sourceStatesIterator = sourceStates.begin();
+        std::multimap<std::string, std::pair<std::string, double> >::iterator targetStatesIterator = targetStates.begin();
+        while (!bothFinished)
+        {//while some left
+
+
+            std::pair<std::string, std::pair<std::string, double> > toAdd;
+            std::stringstream ss;
+            ss << (*sourceStatesIterator).first << ":" << (*sourceStatesIterator).second.first; //make state+action
+            toAdd.first = ss.str(); //add source
+            std::stringstream ss1;
+            ss1 << (*targetStatesIterator).first << ":" << (*targetStatesIterator).second.first; //make state+action
+            toAdd.second.first = ss1.str(); //add target
+            toAdd.second.second = 1; //add weighting
+            mappings.insert(toAdd);
+            targetStatesIterator++;
+            sourceStatesIterator++;
+
+            //see if ended
+            if (sourceStatesIterator == sourceStates.end())
+            {//if one finished
+                if (targetFinished)
+                {//if target already done
+                    bothFinished = true;
+                }
+                else
+                {
+                    sourceStatesIterator = sourceStates.begin(); //reset it
+                    sourceFinished = true;
+                }
+            }
+            if (targetStatesIterator == targetStates.end())
+            {//if one finished
+                if (sourceFinished)
+                {//if source already done
+                    bothFinished = true;
+                }
+                else
+                {
+                    targetStatesIterator = targetStates.begin(); //reset it
+                    targetFinished = true;
+                }
+            }
+        }
+        sourceStates.clear(); //clean up
+        targetStates.clear();
+    }
+    else
+    {
+        std::cerr << "TransferMapping trying to map a null thing\r\n";
+        exit(85);
+    }
+
+}
+
+/**
+ * put the states into the mapping in any order
+ */
+void TransferMapping::populateMappingBySearch()
+{
+    bool bothFinished = false;
+    bool sourceFinished = false;
+    bool targetFinished = false;
+
+    if (source != NULL && target != NULL)
+    {//if something there			
+        //for all source's states make them a partner in target
+        std::multimap<std::string, std::pair<std::string, double> >sourceStates = source->getQTable();
+        std::multimap<std::string, std::pair<std::string, double> >targetStates = target->getQTable();
+        std::multimap<std::string, std::pair<std::string, double> >::iterator sourceStatesIterator = sourceStates.begin();
+
+        while (!bothFinished)
+        {//while some left
+
+
+            std::pair<std::string, std::pair<std::string, double> > toAdd;
+            std::stringstream ss;
+            ss << (*sourceStatesIterator).first << ":" << (*sourceStatesIterator).second.first; //make state+action
+            toAdd.first = ss.str(); //add source
+
+            if (targetStates.find((*sourceStatesIterator).first) != targetStates.end())
+            {//if state match get all matches
+                std::pair<std::multimap<std::string, std::pair<std::string, double> >::iterator, std::multimap<std::string, std::pair<std::string, double> >::iterator > targetStatesIterator = targetStates.equal_range((*sourceStatesIterator).first);
+                while (targetStatesIterator.first != targetStatesIterator.second)
+                {//for all possible correct states and actions
+                    if ((*targetStatesIterator.first).second.first == (*sourceStatesIterator).second.first)
+                    {//if actions match
+                        std::stringstream ss1;
+                        ss1 << (*targetStates.find((*sourceStatesIterator).first)).first << ":" << (*targetStatesIterator.first).second.first; //make state+action
+                        toAdd.second.first = ss1.str(); //add target
+                        toAdd.second.second = 1; //add weighting
+                        targetStatesIterator.first = targetStatesIterator.second; //end loop
+                        //std::cerr<<toAdd.second.first <<" matched  "<<toAdd.first<<"\n";
+                    }
+                    else
+                    {
+                        targetStatesIterator.first++;
+                    }
+                }
+
+            }
+            else
+            {
+                toAdd.second.first = "NO MATCH"; //add target
+                toAdd.second.second = 1; //add weighting
+            }
+            mappings.insert(toAdd);
+            //targetStatesIterator++;
+            sourceStatesIterator++;
+            //see if ended
+            if (sourceStatesIterator == sourceStates.end())
+            {//if one finished
+                if (targetFinished)
+                {//if target already done
+                    bothFinished = true;
+                }
+                else
+                {
+                    sourceStatesIterator = sourceStates.begin(); //reset it
+                    sourceFinished = true;
+                    bothFinished = true; //add this so only this one needs to finish
+                }
+            }
+
+        }
+        sourceStates.clear(); //clean up
+        targetStates.clear();
+    }
+    else
+    {
+        std::cerr << "TransferMapping trying to map a null thing\r\n";
+        exit(85);
+    }
+
+}
+
+/**
+ * put the states into the mapping in any order
+ */
+void TransferMapping::populateWMappingBySearch()
+{//std::cerr<<"trying to map ws\n";
+    bool bothFinished = false;
+    bool sourceFinished = false;
+    bool targetFinished = false;
+
+    if (source != NULL && target != NULL)
+    {//if something there			
+        //for all source's states make them a partner in target
+        std::map<std::string, double> sourceStates = wSource->getWTable();
+        std::map<std::string, double> targetStates = wTarget->getWTable();
+        std::map<std::string, double> ::iterator sourceStatesIterator = sourceStates.begin();
+
+        while (!bothFinished)
+        {//while some left
+
+
+            std::pair<std::string, std::pair<std::string, double> > toAdd;
+            std::stringstream ss;
+            ss << (*sourceStatesIterator).first; //make state
+            toAdd.first = ss.str(); //add source
+
+            if (targetStates.find((*sourceStatesIterator).first) != targetStates.end())
+            {//if state match get all matches
+                std::pair<std::map<std::string, double> ::iterator, std::map<std::string, double> ::iterator > targetStatesIterator = targetStates.equal_range((*sourceStatesIterator).first);
+                while (targetStatesIterator.first != targetStatesIterator.second)
+                {//for all possible correct states and actions
+                    if ((*targetStatesIterator.first).first == (*sourceStatesIterator).first)
+                    {//if actions match
+                        std::stringstream ss1;
+                        ss1 << (*targetStates.find((*sourceStatesIterator).first)).first; //make state
+                        toAdd.second.first = ss1.str(); //add target
+                        toAdd.second.second = 1; //add weighting
+                        targetStatesIterator.first = targetStatesIterator.second; //end loop
+                        //std::cerr<<toAdd.second.first <<" matched  "<<toAdd.first<<"\n";
+                    }
+                    else
+                    {
+                        targetStatesIterator.first++;
+                    }
+                }
+
+            }
+            else
+            {
+                toAdd.second.first = "NO MATCH"; //add target
+                toAdd.second.second = 1; //add weighting
+            }
+            mappings.insert(toAdd);
+            //targetStatesIterator++;
+            sourceStatesIterator++;
+            //see if ended
+            if (sourceStatesIterator == sourceStates.end())
+            {//if one finished
+                if (targetFinished)
+                {//if target already done
+                    bothFinished = true;
+                }
+                else
+                {
+                    sourceStatesIterator = sourceStates.begin(); //reset it
+                    sourceFinished = true;
+                    bothFinished = true; //add this so only this one needs to finish
+                }
+            }
+
+        }
+        sourceStates.clear(); //clean up
+        targetStates.clear();
+    }
+    else
+    {
+        std::cerr << "TransferMapping trying to map a null thing\r\n";
+        exit(85);
+    }
+
+}
+
+/**
+ * take a q table state action pair and fit it into the mapping framework
+ * @param input a qtable's pair state action value
+ * @return state+action value
+ */
+std::pair<std::string, double> TransferMapping::makePairForMapper(std::pair<std::string, std::pair<std::string, double> > input)
+{
+    std::pair<std::string, double> output;
+    std::stringstream ss;
+    ss << input.first << ":" << input.second.first; //make state+action
+    output.first = ss.str(); //add it
+    output.second = input.second.second; //put in the q
+    return output;
+}
+
+/**
+ * take a q table state action pair and fit it into the mapping framework
+ * @param input a qtable's pair state action value
+ * @return state+action value
+ */
+std::vector<std::pair<std::string, double> > TransferMapping::makePairForMapper(std::vector<std::pair<std::string, std::pair<std::string, double> > > input)
+{//std::cerr << "make pair for mapper\r\n";
+    std::vector<std::pair<std::string, double> >output;
+    std::vector<std::pair<std::string, std::pair<std::string, double> > >::iterator inputIterator = input.begin();
+    while (inputIterator != input.end())
+    {
+        std::pair<std::string, double> toAdd;
+        std::stringstream ss;
+        ss << (*inputIterator).first << ":" << (*inputIterator).second.first; //make state+action
+        toAdd.first = ss.str(); //add it
+        toAdd.second = (*inputIterator).second.second; //put in the q
+        output.push_back(toAdd);
+        inputIterator++;
+    }
+    //std::cerr << "make pair for mapper end\r\n";
+    return output;
+}
+
+/**
+ * map the passed pair from source to target 
+ * @param input the state action and its q value
+ * @return the q value pair to add to target
+ */
+std::pair<std::string, std::pair<std::string, double> > TransferMapping::mapFromStateToTarget(std::pair<std::string, double> input)
+{//std::cerr<<"about to map pair"<<" \n";
+    std::pair<std::string, std::pair<std::string, double> > output;
+    if ((mappings.find(input.first)) != mappings.end())
+    {
+        std::pair<std::string, std::string > toRemember;
+        toRemember.first = input.first;
+        std::pair<std::string, double> targetState = (*(mappings.find(input.first))).second; //(*(mapping.find(input.first)));//get where this state should be
+        std::string action = targetState.first;
+        std::string state = action.replace(action.find(":"), (action.length() - 1), ""); //trim off action;
+        action = targetState.first;
+        action = action.substr(action.find(":") + 1, action.length() - 1);
+        output.first = state;
+        output.second.first = action;
+        output.second.second = targetState.second * input.second; //weighting *q
+        std::stringstream ss;
+        ss << state << ":" << action;
+        toRemember.second = ss.str(); //remember prep
+        outBuffer.push_back(toRemember); //remember
+    }
+    else
+    {
+        std::cerr << "couldn't find the thing( " << input.first << " ) to map\r\n";
+        exit(47892);
+    }
+    //std::cerr<<"Mapped from "<<input.first<<" to "<<output.first<<"\n";
+    return output;
+}
+
+/**
+ * map the passed w pair from source to target 
+ * @param input the state action and its w value
+ * @return the q value pair to add to target
+ */
+std::pair<std::string, double> TransferMapping::mapWFromStateToTarget(std::pair<std::string, double> input)
+{//std::cerr<<"about to map w"<<" \n";
+    std::pair<std::string, double> output;
+    if ((mappings.find(input.first)) != mappings.end())
+    {
+        std::pair<std::string, double> targetState = (*(mappings.find(input.first))).second; //(*(mapping.find(input.first)));//get where this state should be
+        std::string state = targetState.first;
+        output.first = state;
+        output.second = targetState.second * input.second; //weighting *q
+    }
+    else
+    {
+        std::cerr << "w couldn't find the thing( " << input.first << " ) to map\r\n";
+        exit(47892);
+    }
+    //std::cerr<<"Mapped w from "<<input.first<<" to "<<output.first<<"\n";
+    return output;
+}
+
+/**
+ * vector version map the passed pair from source to target 
+ * @param input the state action and its q value
+ * @return the q value pair to add to target
+ */
+std::vector<std::pair<std::string, double> > TransferMapping::mapWFromStateToTarget(std::vector<std::pair<std::string, double> >input)
+{//std::cerr << "map from state to target\r\n";
+    std::vector<std::pair<std::string, double> > output;
+    std::vector<std::pair<std::string, double> >::iterator inputIterator = input.begin();
+    while (inputIterator != input.end())
+    {
+
+        std::pair<std::string, double> temp = TransferMapping::mapWFromStateToTarget((*inputIterator));
+        output.push_back(temp);
+        inputIterator++;
+    }
+
+    // std::cerr << "ma from state to target end\r\n";
+    return output;
+}
+
+/**
+ * vector version map the passed pair from source to target 
+ * @param input the state action and its q value
+ * @return the q value pair to add to target
+ */
+std::vector<std::pair<std::string, std::pair<std::string, double> > > TransferMapping::mapFromStateToTarget(std::vector<std::pair<std::string, double> >input)
+{//std::cerr << "map from state to target\r\n";
+    std::vector<std::pair<std::string, std::pair<std::string, double> > > output;
+    std::vector<std::pair<std::string, double> >::iterator inputIterator = input.begin();
+    while (inputIterator != input.end())
+    {
+
+        std::pair<std::string, std::pair<std::string, double> > temp = TransferMapping::mapFromStateToTarget((*inputIterator));
+        output.push_back(temp);
+        inputIterator++;
+    }
+
+    //std::cerr << "ma from state to target end\r\n";
+    return output;
+}
+
+void TransferMapping::printMappingSourceFirst(std::string input)
+{
+    std::stringstream ss;
+    ss << getSourceName() << " to " << getTargetName() << " " << input << "-mapping.txt.stats";
+    std::cerr << "writing " << input << "\n";
+    std::ofstream outputfile(ss.str().c_str());
+
+    if (outputfile.is_open())
+    {//std::cerr<<rewardLog.size() <<"= log size\n";
+        outputfile << "deleted " << deletedCount << " elements\r\n";
+        std::multimap<std::string, std::pair<std::string, double> >::iterator mappingIterator = mappings.begin();
+
+        while (mappingIterator != mappings.end())
+        {//for all maps
+            outputfile << "|" << (*mappingIterator).first << "|-|" << (*mappingIterator).second.first << "| " << (*mappingIterator).second.second << " votes= ";
+            std::pair<std::string, std::string> key;
+            key.first = (*mappingIterator).first;
+            key.second = (*mappingIterator).second.first;
+            outputfile << (*votes.find(key)).second;
+            outputfile << "\r\n";
+            mappingIterator++;
+        }
+        outputfile << "\r\n"; //eof
+        outputfile.close();
+    }
+    else
+    {
+        std::cerr << "\nmapping->printmappingsource Unable to open file\n";
+        exit(89);
+    }
+}
+
+void TransferMapping::printMappingTargetFirst(std::string input)
+{
+    std::stringstream ss;
+    ss << getTargetName() << " to " << getSourceName() << " " << input << "-mapping.txt.stats";
+    //std::cerr << "writing " << filename << "\n";
+    std::ofstream outputfile(ss.str().c_str());
+
+    if (outputfile.is_open())
+    {//std::cerr<<rewardLog.size() <<"= log size\n";
+        outputfile << "deleted " << deletedCount << " elements\r\n";
+        std::multimap<std::string, std::pair<std::string, double> > mappingCopy = mappings;
+        while (mappingCopy.size() > 0)
+        {//for all pipes
+            std::multimap<std::string, std::pair<std::string, double> >::iterator mappingCopyIterator = mappingCopy.begin();
+            std::pair<std::string, std::pair<std::string, double> > test = (*mappingCopyIterator); //get first for match
+            mappingCopyIterator++;
+            //std::cout << "a " << test.second.first << "\n";
+            //see if there are any matches (2 pipes to one location))
+            while (mappingCopyIterator != mappingCopy.end())
+            {//search the rest for match
+                //std::cout << " compare to " << (*mappingCopyIterator).second.first << "\n";
+                if (((*mappingCopyIterator).second.first) == (test.second.first))
+                {//match
+                    // std::cout << "b\n";
+                    outputfile << "|" << (*mappingCopyIterator).second.first << "|-|" << (*mappingCopyIterator).first << "| " << (*mappingCopyIterator).second.second << " votes= ";
+                    std::pair<std::string, std::string> key;
+                    key.first = (*mappingCopyIterator).first;
+                    key.second = (*mappingCopyIterator).second.first;
+                    outputfile << (*votes.find(key)).second;
+                    outputfile << "\r\n";
+                    //std::cout << "about to delete " << (*mappingCopyIterator).second.first << "\n";
+                    mappingCopy.erase(mappingCopyIterator); //delete the match
+                    break;
+                }
+                //std::cout << "c\n";
+                mappingCopyIterator++;
+            }
+            // std::cout << "d\n";
+            if (mappingCopyIterator == mappingCopy.end())
+            {//now put in this one
+
+                outputfile << "|" << test.second.first << "|-|" << test.first << "| " << test.second.second << " votes= ";
+                std::pair<std::string, std::string> key;
+                key.first = test.first;
+                key.second = test.second.first;
+                outputfile << (*votes.find(key)).second;
+                outputfile << "\r\n";
+                mappingCopy.erase(mappingCopy.begin()); //delete the first
+            }
+        }
+        outputfile << "\r\n"; //eof
+        outputfile.close();
+    }
+    else
+    {
+        std::cerr << "\nmapping->printmappingtarget Unable to open file\n";
+        exit(89);
+    }
+}
