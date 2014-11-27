@@ -273,7 +273,7 @@ void QTable::qLearningUpdate(std::string previousStateName, std::string actionNa
     {//go through all actions in this state and see if there is a match
         if ((*it).second.first.compare(actionName) == 0)
         {//if they match do the update      
-            //std::cerr << "Qlearning - " << (*it).first << " + " << (*it).second.first << "'s value " << (*it).second.second;
+            // std::cerr << "Qlearning - " << (*it).first << " + " << (*it).second.first << "'s value " << (*it).second.second;
             //q new =                        q old +                         alpha (reward +gamma (max next action)                                                    - q old)
             //ADDED FOR EXP
             double oldValue = (*it).second.second;

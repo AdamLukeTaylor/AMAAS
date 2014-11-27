@@ -13,15 +13,15 @@ public:
     //run stuff
     const static int NUMBER_OF_ALPHAS = 10; //one less than is actually wanted
     const static int NUMBER_OF_GAMMAS = 10; //11
-    const static int NUMBER_OF_EXPS = 1; //10
-    const static int NUMBER_OF_MT_CAR_EXPOLITE_RUNS = 3;
-    const static int NUMBER_OF_CART_POLE_EXPLOITE_RUNS = 3;
+    const static int NUMBER_OF_EXPS = 10; //10
+    const static int NUMBER_OF_MT_CAR_EXPOLITE_RUNS = 1;
+    const static int NUMBER_OF_CART_POLE_EXPLOITE_RUNS = 1;
 
     //mountain car
     //learn too fast ? ? ? ? ?
-    const static int CAR_TRAINING = 1;
-    const static int CAR_TRAINING_STEPS = (100000); //now used 
-    const static int TEST_FREQ = 5000;
+    const static int CAR_TRAINING = 10;
+    const static int CAR_TRAINING_STEPS = (10000); //now used 
+    const static int TEST_FREQ = 50000;
     const static int CAR_EXPLOITATION_TIME = 100000; //who cares how long results discarded
     const static int CAR_MAX = 100000;
 
@@ -46,7 +46,7 @@ public:
     }
 
     //CART POLE
-    const static int POLL_TRAINING = 2000;
+    const static int POLL_TRAINING = 10;
     /*** Parameters for RL ***/
     const static int N_BOXES = 162; /* Number of disjoint boxes of state space. */
 
@@ -92,7 +92,7 @@ public:
     }
 
     const static float FORCE_MAG() {
-        return 1.0;
+        return 10.0;
     }
 
     const static float TAU() {

@@ -277,11 +277,12 @@ std::string CartPole::getState()
 void CartPole::printState()
 {
     cout << "---------------------------------\nState is:\n";
-    cout << "\tx (position of cart)= " << x << "\n";
-    cout << "\tx_dot (cart speed)= " << x_dot << "\n";
-    cout << "\ttheta (angle)= " << theta * Constants::DEG_IN_RAD() << "\n";
-    cout << "\ttheta_dot (rotational speed)= " << theta_dot * Constants::DEG_IN_RAD() << "\n";
-    cout << "\tBox= " << this->getBox() << "\n";
+    //cout << "\tx (position of cart)= " << x << "\n";
+    //cout << "\tx_dot (cart speed)= " << x_dot << "\n";
+    //cout << "\ttheta (angle)= " << theta * Constants::DEG_IN_RAD() << "\n";
+    //cout << "\ttheta_dot (rotational speed)= " << theta_dot * Constants::DEG_IN_RAD() << "\n";
+    //cout << "\tBox= " << this->getBox() << "\n";
+    cout << "\tState= " << this->getState() << "\n";
 }
 
 float CartPole::getTheta_dot() const
