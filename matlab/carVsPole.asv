@@ -1,16 +1,16 @@
 %consts
-numberOfExps=100;
+numberOfExps=10;
 carMax=100000;
 poleMin=500;
 %read pole data
-filename=sprintf('C:\\Users\\Adam\\Documents\\NetBeansProjects\\aamasResults\\a5\\overall\\final+poleSteps.csv')
+filename=sprintf('C:\\Users\\Adam\\Documents\\NetBeansProjects\\aamasResults\\f3\\overall\\final+poleSteps.csv')
 poleData=csvread(filename);%get data
 poleData = poleData(1:(length(poleData)-1));%drop last ellement 0
 poleAve=mean(poleData)
 
 
 %read car data
-filename=sprintf('C:\\Users\\Adam\\Documents\\NetBeansProjects\\aamasResults\\a4\\overall\\final+carSteps.csv')
+filename=sprintf('C:\\Users\\Adam\\Documents\\NetBeansProjects\\aamasResults\\f3\\overall\\final+carSteps.csv')
 carData=csvread(filename);%get data
 carData = carData(1:(length(carData)-1));%drop last ellement 0
 carAve=mean(carData)

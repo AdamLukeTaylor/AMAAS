@@ -67,11 +67,11 @@ int currentRun = 0;
 int currentAlpha = 0;
 int currentGamma = 0;
 
-//these keep track of what we are doing
+//thes3 keep track of what we are doing
 std::string expName[] = {
     "eval",
-    "f5"//f 10, .001
-}; //e =reward 1 fg= reward 2 g= 1 tst not 3
+    "f9"//f 10, .001
+}; //e =reward 1 fg2= reward 2 g= 1 tst not 3
 int expNumber = 1;
 
 /*
@@ -183,7 +183,7 @@ int main(int argc, char** argv)
         //for (currentGamma = 0; currentGamma < Constants::NUMBER_OF_GAMMAS; currentGamma++)
         //currentGamma = 8;
         {//set results
-            int numberOfTimes = 100;
+            int numberOfTimes = 90;
             for (currentRun = 0; currentRun < Constants::NUMBER_OF_EXPS * numberOfTimes; currentRun++)
             {
                 setCarAgentForRun(alphas[9], gammas[1]); //alphas[currentAlpha], gammas[currentGamma]);
@@ -495,7 +495,7 @@ void duelRun(int number)
                 poleAveFallTime += poleStepCount;
                 poleStepCount = 0;
                 poleNumberOfFalls++;
-                pole->reset();
+                pole->randReset();
                 //std::cout << "poll finished\n";
 
             }
@@ -508,7 +508,7 @@ void duelRun(int number)
                 carThisRunTime = 0;
                 carFinishCount++;
                 //exit(0);
-                car->reset(false); //reset to not random pos
+                car->reset(!false); //reset to not random pos
 
                 break;
 

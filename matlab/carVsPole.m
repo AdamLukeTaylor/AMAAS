@@ -1,5 +1,6 @@
 %consts
-numberOfExps=100;
+numberOfExps=10
+0;
 carMax=100000;
 poleMin=500;
 %read pole data
@@ -83,7 +84,7 @@ ylabel('Performance')
 outname=sprintf('C:\\Users\\Adam\\Documents\\NetBeansProjects\\AMAAS\\matlab\\output\\MtVsCar.png')
 %scatter(locations,data)%,'Color',[1,0,0],'LineStyle','-','Marker','.')
 
-%plot(outCarData,'Color',[1,0,0],'LineStyle','-','Marker','.')
+plot(outCarData,'Color',[1,0,0],'LineStyle','-','Marker','.')
 plot(outPoleData,'Color',[0,1,0],'LineStyle','-','Marker','.')
 legend('Mt Car Steps','Cart Pole Steps','DWL+PTL(Q+W)', 'Base Load','Location','northwest')
 %print(fig1,'-dpng','-r1000',outname)
